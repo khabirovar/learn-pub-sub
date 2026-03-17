@@ -20,6 +20,18 @@ func main() {
 	defer conn.Close()
 	fmt.Println("Connection was successful...")
 
+	_, gameLogsCh, err := pubsub.DeclareAndBind(
+		conn,
+		routing.ExchangePerilTopic, 
+		routing.GameLogSlug,
+		fmt.Sprintf("%s.*", routing.GameLogSlug),
+		pubsub.Durable,
+	)
+	if err != nil {
+		log.Fatalf("Couldn't create queue %s: %v", routing.GameLogSlug, err)
+	}
+	fmt.Printf("Created queue %v\n", gameLogsCh.Name)
+
 	ch, err := conn.Channel()
 	if err != nil {
 		log.Fatalf("Couldn't create channel to rabbitmq: %v\n", err)
