@@ -25,14 +25,14 @@ func main() {
 		log.Fatalf("Couldn't create welcome: %v", err)
 	}
 
-	queueName := fmt.Sprintf("%s.%s", routing.PauseKey, username)
-	_, queue, err := pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, queueName, routing.PauseKey, pubsub.Transient)
-	if err != nil {
-		log.Fatalf("Couldn't create queue: %v", err)
-	}
-	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
-
 	gameState := gamelogic.NewGameState(username)
+	queueName := fmt.Sprintf("%s.%s", routing.PauseKey, username)
+	// _, queue, err := pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, queueName, routing.PauseKey, pubsub.Transient)
+	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, queueName, routing.PauseKey, pubsub.Transient, handlerPause(gameState))
+	if err != nil {
+		log.Fatalf("Couldn't subscribe queue: %v", err)
+	}
+
 	for {
 		words := gamelogic.GetInput()
 		if len(words) < 1 {
@@ -42,12 +42,12 @@ func main() {
 		if words[0] == "spawn" {
 			err = gameState.CommandSpawn(words)
 			if err != nil {
-				log.Fatalf("Couldn't spawn: %v", err)
+				fmt.Printf("Couldn't spawn: %v", err)
 			}
 		} else if words[0] == "move" {
 			_, err := gameState.CommandMove(words)
 			if err != nil {
-				log.Fatalf("Couldn't move: %v", err)
+				fmt.Printf("Couldn't move: %v", err)
 			}
 		} else if words[0] == "status" {
 			gameState.CommandStatus()
@@ -61,5 +61,12 @@ func main() {
 		} else {
 			fmt.Println("Unknown command")
 		}
+	}
+}
+
+func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
+	return func(ps routing.PlayingState) {
+		defer fmt.Print("> ")
+		gs.HandlePause(ps)
 	}
 }

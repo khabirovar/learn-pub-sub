@@ -51,7 +51,7 @@ func getOverlappingLocation(p1 Player, p2 Player) Location {
 
 func (gs *GameState) CommandMove(words []string) (ArmyMove, error) {
 	if gs.isPaused() {
-		return ArmyMove{}, errors.New("the game is paused, you can not move units")
+		return ArmyMove{}, errors.New("the game is paused, you can not move units\n")
 	}
 	if len(words) < 3 {
 		return ArmyMove{}, errors.New("usage: move <location> <unitID> <unitID> <unitID> etc")
