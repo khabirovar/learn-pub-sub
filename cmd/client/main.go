@@ -33,6 +33,17 @@ func main() {
 		log.Fatalf("Couldn't subscribe queue: %v", err)
 	}
 
+	queueName = fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, username)
+	routingKey := fmt.Sprintf("%s.*", routing.ArmyMovesPrefix)
+	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, queueName, routingKey, pubsub.Transient, handlerMove(gameState))
+	if err != nil {
+		log.Fatalf("Couldn't subscribe queue: %v", err)
+	}
+
+	publishChan, err := conn.Channel()
+	if err != nil {
+		fmt.Printf("Couldn't create chan to rabbitmq: %v\n", err)
+	}
 	for {
 		words := gamelogic.GetInput()
 		if len(words) < 1 {
@@ -45,9 +56,15 @@ func main() {
 				fmt.Printf("Couldn't spawn: %v", err)
 			}
 		} else if words[0] == "move" {
-			_, err := gameState.CommandMove(words)
+			move, err := gameState.CommandMove(words)
 			if err != nil {
-				fmt.Printf("Couldn't move: %v", err)
+				fmt.Printf("Couldn't move: %v\n", err)
+			}
+
+			routingKey = fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, username)
+			err = pubsub.PublishJSON(publishChan, routing.ExchangePerilTopic, routingKey, move)
+			if err != nil {
+				log.Fatalf("Publishing error: %v", err)
 			}
 		} else if words[0] == "status" {
 			gameState.CommandStatus()
@@ -68,5 +85,12 @@ func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
 	return func(ps routing.PlayingState) {
 		defer fmt.Print("> ")
 		gs.HandlePause(ps)
+	}
+}
+
+func handlerMove(gs *gamelogic.GameState) func(gamelogic.ArmyMove) {
+	return func(move gamelogic.ArmyMove) {
+		defer fmt.Print("> ")
+		gs.HandleMove(move)
 	}
 }
